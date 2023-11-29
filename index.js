@@ -31,6 +31,7 @@ async function run() {
     const coverageCollection = client
       .db(process.env.DB_NAME)
       .collection("coverageArea");
+    const userCollection = client.db(process.env.DB_NAME).collection("users");
 
     // coverage api
     app.get("/coverage", async (req, res) => {
@@ -40,6 +41,24 @@ async function run() {
         .skip(+page * +limit)
         .limit(+limit)
         .toArray();
+      res.send(result);
+    });
+
+    // users related api
+    app.post("/users/:email", async (req, res) => {
+      const email = req.params.email;
+      const query = { email: email };
+      const user = await userCollection.findOne(query);
+      if (user) {
+        return res.send({ message: "User Already Registered" });
+      }
+      const { role, createdOn } = req.body;
+      const newUser = {
+        email,
+        createdOn,
+        role,
+      };
+      const result = await userCollection.insertOne(newUser);
       res.send(result);
     });
 
