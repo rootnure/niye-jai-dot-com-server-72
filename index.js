@@ -32,6 +32,9 @@ async function run() {
       .db(process.env.DB_NAME)
       .collection("coverageArea");
     const userCollection = client.db(process.env.DB_NAME).collection("users");
+    const bookingCollection = client
+      .db(process.env.DB_NAME)
+      .collection("bookings");
 
     // coverage api
     app.get("/coverage", async (req, res) => {
@@ -52,13 +55,22 @@ async function run() {
       if (user) {
         return res.send({ message: "User Already Registered" });
       }
-      const { role, createdOn } = req.body;
+      const { role, createdOn, name, photo } = req.body;
       const newUser = {
         email,
         createdOn,
         role,
+        name,
+        photo,
       };
       const result = await userCollection.insertOne(newUser);
+      res.send(result);
+    });
+
+    app.get("/users", async (req, res) => {
+      const role = req.query.role;
+      const query = role ? { role: role } : {};
+      const result = await userCollection.find(query).toArray();
       res.send(result);
     });
 
@@ -70,6 +82,16 @@ async function run() {
       };
       const result = await userCollection.findOne(query, options);
       res.send(result);
+    });
+
+    // count api
+    app.get("/counter", async (req, res) => {
+      const bookingCount = await bookingCollection.estimatedDocumentCount();
+      const deliveryCount = await bookingCollection.estimatedDocumentCount({
+        status: "Delivered",
+      });
+      const userCount = await userCollection.estimatedDocumentCount();
+      res.send({ bookingCount, deliveryCount, userCount });
     });
 
     // Send a ping to confirm a successful connection
