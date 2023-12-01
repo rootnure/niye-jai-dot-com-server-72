@@ -23,18 +23,18 @@ const client = new MongoClient(uri, {
   },
 });
 
+const databaseName = process.env.DB_NAME;
+
 async function run() {
   try {
     // Connect the client to the server	(optional starting in v4.7)
     await client.connect();
 
     const coverageCollection = client
-      .db(process.env.DB_NAME)
+      .db(databaseName)
       .collection("coverageArea");
-    const userCollection = client.db(process.env.DB_NAME).collection("users");
-    const bookingCollection = client
-      .db(process.env.DB_NAME)
-      .collection("bookings");
+    const userCollection = client.db(databaseName).collection("users");
+    const bookingCollection = client.db(databaseName).collection("bookings");
 
     // coverage api
     app.get("/coverage", async (req, res) => {
@@ -47,7 +47,8 @@ async function run() {
       res.send(result);
     });
 
-    // users related api
+    /* users related api */
+    // create new user to DB
     app.post("/users/:email", async (req, res) => {
       const email = req.params.email;
       const query = { email: email };
@@ -67,13 +68,15 @@ async function run() {
       res.send(result);
     });
 
+    // Get Users based on role (All users will be return if no role is provided)
     app.get("/users", async (req, res) => {
-      const role = req.query.role;
-      const query = role ? { role: role } : {};
+      const role = req.query.role; // /users?role=Admin
+      const query = role === "All" || !role ? {} : { role: role };
       const result = await userCollection.find(query).toArray();
       res.send(result);
     });
 
+    // get user role based on user email
     app.get("/user-role/:email", async (req, res) => {
       const email = req.params.email;
       const query = { email: email };
@@ -84,7 +87,24 @@ async function run() {
       res.send(result);
     });
 
-    // count api
+    // get top riders based on ratingAvg or deliveryCount
+    app.get("/top-riders/:topBy", async (req, res) => {
+      const topBy = req.params.topBy; // ratingAvg or deliveryCount
+      const query = { role: "Rider" };
+      const options = {
+        sort:
+          topBy === "deliveryCount" ? { deliveryCount: 1 } : { ratingAvg: 1 },
+        projection: { name: 1, photo: 1, ratingAvg: 1, deliveryCount: 1 },
+      };
+      const result = await userCollection
+        .find(query, options)
+        .limit(5)
+        .toArray();
+      res.send(result);
+    });
+
+    /* count api */
+    // get collection counts for states
     app.get("/counter", async (req, res) => {
       const bookingCount = await bookingCollection.estimatedDocumentCount();
       const deliveryCount = await bookingCollection.estimatedDocumentCount({
