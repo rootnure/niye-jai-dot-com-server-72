@@ -87,20 +87,26 @@ async function run() {
       res.send(result);
     });
 
-    // get top riders based on ratingAvg or deliveryCount
-    app.get("/top-riders/:topBy", async (req, res) => {
-      const topBy = req.params.topBy; // ratingAvg or deliveryCount
+    // get top riders based on ratingAvg and deliveryCount
+    app.get("/top-riders", async (req, res) => {
       const query = { role: "Rider" };
-      const options = {
-        sort:
-          topBy === "deliveryCount" ? { deliveryCount: 1 } : { ratingAvg: 1 },
+      const optionsRatingAvg = {
+        sort: { ratingAvg: -1 },
         projection: { name: 1, photo: 1, ratingAvg: 1, deliveryCount: 1 },
       };
-      const result = await userCollection
-        .find(query, options)
+      const byRating = await userCollection
+        .find(query, optionsRatingAvg)
         .limit(5)
         .toArray();
-      res.send(result);
+      const optionsDeliveryCount = {
+        sort: { deliveryCount: -1 },
+        projection: { name: 1, photo: 1, ratingAvg: 1, deliveryCount: 1 },
+      };
+      const byDelivery = await userCollection
+        .find(query, optionsDeliveryCount)
+        .limit(5)
+        .toArray();
+      res.send({ byRating, byDelivery });
     });
 
     /* count api */
