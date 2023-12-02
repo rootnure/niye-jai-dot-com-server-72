@@ -8,7 +8,7 @@ const port = process.env.PORT || 5000;
 app.use(cors());
 app.use(express.json());
 
-const { MongoClient, ServerApiVersion } = require("mongodb");
+const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 const noIdPassURI = process.env.LOCAL_URI;
 const uri = noIdPassURI
   .replace("<username>", process.env.DB_USER)
@@ -84,6 +84,30 @@ async function run() {
         projection: { _id: 0, role: 1 },
       };
       const result = await userCollection.findOne(query, options);
+      res.send(result);
+    });
+
+    // update user role by admin only
+    app.patch("/update-role/:email", async (req, res) => {
+      const email = req.params.email;
+      const newRole = req.query.newRole;
+      const filter = { email: email };
+      const options = { upsert: true };
+      const updateDoc = {
+        $set: {
+          role: newRole,
+        },
+      };
+      const result = await userCollection.updateOne(filter, updateDoc, options);
+      res.send(result);
+    });
+
+    // delete user by admin only
+    app.delete("/user-delete/:id", async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) };
+      // console.log(query);
+      const result = await userCollection.deleteOne(query);
       res.send(result);
     });
 
