@@ -47,6 +47,30 @@ async function run() {
       res.send(result);
     });
 
+    /* bookings related api */
+    app.post("/bookings", async (req, res) => {
+      const data = req.body;
+      const dataForDB = {
+        bookedBy: data.name,
+        bookedByEmail: data.email,
+        bookedByPhone: data.phone,
+        parcelType: data.type,
+        weight: parseFloat(data.weight),
+        deliveryFee: data.weight <= 1 ? 50 : data.weight <= 2 ? 100 : 150,
+        receiverName: data.receiverName,
+        receiverPhone: data.receiverPhone,
+        address: data.address,
+        reqDeliveryDate: data.date,
+        deliveryLat: parseFloat(data.addressLat),
+        deliveryLon: parseFloat(data.addressLon),
+        deliveryMen: null,
+        approxDeliveryDate: null,
+        status: "Pending",
+      };
+      const result = await bookingCollection.insertOne(dataForDB);
+      res.send(result);
+    });
+
     /* users related api */
     // create new user to DB
     app.post("/users/:email", async (req, res) => {
@@ -137,11 +161,15 @@ async function run() {
     // get collection counts for states
     app.get("/counter", async (req, res) => {
       const bookingCount = await bookingCollection.estimatedDocumentCount();
-      const deliveryCount = await bookingCollection.estimatedDocumentCount({
-        status: "Delivered",
-      });
+      const deliveryCount = await bookingCollection
+        .find({ status: "Delivered" }, { projection: { _id: 1 } })
+        .toArray();
       const userCount = await userCollection.estimatedDocumentCount();
-      res.send({ bookingCount, deliveryCount, userCount });
+      res.send({
+        bookingCount,
+        deliveryCount: deliveryCount.length,
+        userCount,
+      });
     });
 
     // Send a ping to confirm a successful connection
