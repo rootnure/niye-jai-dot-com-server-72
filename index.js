@@ -73,6 +73,22 @@ async function run() {
       res.send(result);
     });
 
+    // get all bookings by admin only
+    app.get("/bookings", async (req, res) => {
+      const options = {
+        projection: {
+          name: 1,
+          phone: 1,
+          bookingDate: 1,
+          reqDeliveryDate: 1,
+          deliveryFee: 1,
+          status: 1,
+        },
+      };
+      const result = await bookingCollection.find({}, options).toArray();
+      res.send(result);
+    });
+
     // get booking based on user email
     app.get("/bookings/:email", async (req, res) => {
       const query = { email: req.params.email };
