@@ -48,26 +48,56 @@ async function run() {
     });
 
     /* bookings related api */
+    // create a new booking
     app.post("/bookings", async (req, res) => {
       const data = req.body;
       const dataForDB = {
-        bookedBy: data.name,
-        bookedByEmail: data.email,
-        bookedByPhone: data.phone,
-        parcelType: data.type,
+        name: data.name,
+        email: data.email,
+        phone: data.phone,
+        type: data.type,
         weight: parseFloat(data.weight),
         deliveryFee: data.weight <= 1 ? 50 : data.weight <= 2 ? 100 : 150,
         receiverName: data.receiverName,
         receiverPhone: data.receiverPhone,
-        address: data.address,
-        reqDeliveryDate: data.date,
-        deliveryLat: parseFloat(data.addressLat),
-        deliveryLon: parseFloat(data.addressLon),
+        deliveryAddress: data.deliveryAddress,
+        reqDeliveryDate: data.reqDeliveryDate,
+        deliveryLat: parseFloat(data.deliveryLat),
+        deliveryLon: parseFloat(data.deliveryLon),
         deliveryMen: null,
         approxDeliveryDate: null,
         status: "Pending",
+        bookingDate: new Date(),
       };
       const result = await bookingCollection.insertOne(dataForDB);
+      res.send(result);
+    });
+
+    // get booking based on user email
+    app.get("/bookings/:email", async (req, res) => {
+      const query = { email: req.params.email };
+      const result = await bookingCollection.find(query).toArray();
+      res.send(result);
+    });
+
+    // get single booking based on booking id
+    app.get("/booking/:id", async (req, res) => {
+      const query = { _id: new ObjectId(req.params.id) };
+      const result = await bookingCollection.findOne(query);
+      res.send(result);
+    });
+
+    // update booking data by id
+    app.patch("/bookings/:id", async (req, res) => {
+      const id = req.params.id;
+      const newData = req.body;
+      const query = { _id: new ObjectId(id) };
+      const updateDoc = {
+        $set: {
+          ...newData,
+        },
+      };
+      const result = await bookingCollection.updateOne(query, updateDoc);
       res.send(result);
     });
 
