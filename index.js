@@ -9,6 +9,7 @@ app.use(cors());
 app.use(express.json());
 
 const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
+const moment = require("moment/moment");
 const noIdPassURI = process.env.LOCAL_URI;
 const uri = noIdPassURI
   .replace("<username>", process.env.DB_USER)
@@ -67,7 +68,7 @@ async function run() {
         deliveryMen: null,
         approxDeliveryDate: null,
         status: "Pending",
-        bookingDate: new Date(),
+        bookingDate: moment(new Date()).format("YYYY-MM-DD"),
       };
       const result = await bookingCollection.insertOne(dataForDB);
       res.send(result);
@@ -75,6 +76,16 @@ async function run() {
 
     // get all bookings by admin only
     app.get("/bookings", async (req, res) => {
+      const { dateFrom, dateTo } = req.query;
+      const query =
+        dateFrom && dateTo
+          ? {
+              $and: [
+                { bookingDate: { $gte: dateFrom } },
+                { bookingDate: { $lte: dateTo } },
+              ],
+            }
+          : {};
       const options = {
         projection: {
           name: 1,
@@ -85,7 +96,7 @@ async function run() {
           status: 1,
         },
       };
-      const result = await bookingCollection.find({}, options).toArray();
+      const result = await bookingCollection.find(query, options).toArray();
       res.send(result);
     });
 
@@ -210,11 +221,13 @@ async function run() {
       const deliveryCount = await bookingCollection
         .find({ status: "Delivered" }, { projection: { _id: 1 } })
         .toArray();
-      const userCount = await userCollection.estimatedDocumentCount();
+      const userCount = await userCollection
+        .find({ role: "User" }, { projection: { _id: 1 } })
+        .toArray();
       res.send({
         bookingCount,
         deliveryCount: deliveryCount.length,
-        userCount,
+        userCount: userCount.length,
       });
     });
 
