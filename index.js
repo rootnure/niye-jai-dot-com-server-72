@@ -1,5 +1,6 @@
 const express = require("express");
 const cors = require("cors");
+const jwt = require("jsonwebtoken");
 require("dotenv").config();
 const stripe = require("stripe")(process.env.STRIPE_SK);
 const app = express();
@@ -31,24 +32,45 @@ async function run() {
   try {
     // Connect the client to the server	(optional starting in v4.7)
     await client.connect();
-
-    const coverageCollection = client
-      .db(databaseName)
-      .collection("coverageArea");
     const userCollection = client.db(databaseName).collection("users");
     const bookingCollection = client.db(databaseName).collection("bookings");
     const reviewCollection = client.db(databaseName).collection("reviews");
 
-    // coverage api
-    app.get("/coverage", async (req, res) => {
-      const { page, limit } = req.query;
-      const result = await coverageCollection
-        .find()
-        .skip(+page * +limit)
-        .limit(+limit)
-        .toArray();
-      res.send(result);
+    // jwt related api
+    app.post("/jwt", async (req, res) => {
+      const user = req.body;
+      const token = jwt.sign(user, process.env.TOKEN_SECRET, {
+        expiresIn: "24h",
+      });
+      res.send({ token });
     });
+
+    // middlewares
+    const verifyToken = (req, res, next) => {
+      if (!req?.headers?.authorization) {
+        return res.status(401).send({ message: "Unauthorized Access" });
+      }
+      const token = req?.headers?.authorization.split(" ")[1];
+      jwt.verify(token, process.env.TOKEN_SECRET, (err, decoded) => {
+        if (err) {
+          return res.status(401).send({ message: "Unauthorized Access" });
+        }
+        req.decoded = decoded;
+        next();
+      });
+    };
+
+    // use verify admin after verifyToken
+    const verifyAdmin = async (req, res, next) => {
+      const email = req.decoded.email;
+      const query = { email: email };
+      const user = await userCollection.findOne(query);
+      const isAdmin = user?.role === "Admin";
+      if (!isAdmin) {
+        return res.status(403).send({ message: "Forbidden Access" });
+      }
+      next();
+    };
 
     /* review related api */
     // post or update a review
@@ -74,7 +96,7 @@ async function run() {
     });
 
     // get all review based on rider id
-    app.get("/my-review/:id", async (req, res) => {
+    app.get("/my-review/:id", verifyToken, async (req, res) => {
       const id = req.params.id;
       const query = { deliveryMenId: id };
       const result = await reviewCollection.find(query).toArray();
@@ -83,7 +105,7 @@ async function run() {
 
     /* bookings related api */
     // create a new booking
-    app.post("/bookings", async (req, res) => {
+    app.post("/bookings", verifyToken, async (req, res) => {
       const data = req.body;
       const dataForDB = {
         name: data.name,
@@ -108,7 +130,7 @@ async function run() {
     });
 
     // get all bookings by admin only
-    app.get("/bookings", async (req, res) => {
+    app.get("/bookings", verifyToken, async (req, res) => {
       const { dateFrom, dateTo } = req.query;
       const query =
         dateFrom && dateTo
@@ -134,14 +156,14 @@ async function run() {
     });
 
     // get booking based on user email
-    app.get("/bookings/:email", async (req, res) => {
+    app.get("/bookings/:email", verifyToken, async (req, res) => {
       const query = { email: req.params.email };
       const result = await bookingCollection.find(query).toArray();
       res.send(result);
     });
 
     // get bookings by assigned rider
-    app.get("/my-consignments/:uId", async (req, res) => {
+    app.get("/my-consignments/:uId", verifyToken, async (req, res) => {
       const deliveryMen = req.params.uId;
       const query = { deliveryMen: deliveryMen };
       const options = {
@@ -163,14 +185,14 @@ async function run() {
     });
 
     // get single booking based on booking id
-    app.get("/booking/:id", async (req, res) => {
+    app.get("/booking/:id", verifyToken, async (req, res) => {
       const query = { _id: new ObjectId(req.params.id) };
       const result = await bookingCollection.findOne(query);
       res.send(result);
     });
 
     // update booking data by id
-    app.patch("/bookings/:id", async (req, res) => {
+    app.patch("/bookings/:id", verifyToken, async (req, res) => {
       const id = req.params.id;
       const newData = req.body;
       const query = { _id: new ObjectId(id) };
@@ -205,7 +227,7 @@ async function run() {
     });
 
     // Get Users based on role (All users will be return if no role is provided)
-    app.get("/users", async (req, res) => {
+    app.get("/users", verifyToken, async (req, res) => {
       const role = req.query.role; // /users?role=Admin
       const query = role === "All" || !role ? {} : { role: role };
       const result = await userCollection.find(query).toArray();
@@ -224,28 +246,42 @@ async function run() {
     });
 
     // update user role by admin only
-    app.patch("/update-role/:email", async (req, res) => {
-      const email = req.params.email;
-      const newRole = req.query.newRole;
-      const filter = { email: email };
-      const options = { upsert: true };
-      const updateDoc = {
-        $set: {
-          role: newRole,
-        },
-      };
-      const result = await userCollection.updateOne(filter, updateDoc, options);
-      res.send(result);
-    });
+    app.patch(
+      "/update-role/:email",
+      verifyToken,
+      verifyAdmin,
+      async (req, res) => {
+        const email = req.params.email;
+        const newRole = req.query.newRole;
+        const filter = { email: email };
+        const options = { upsert: true };
+        const updateDoc = {
+          $set: {
+            role: newRole,
+          },
+        };
+        const result = await userCollection.updateOne(
+          filter,
+          updateDoc,
+          options
+        );
+        res.send(result);
+      }
+    );
 
     // delete user by admin only
-    app.delete("/user-delete/:id", async (req, res) => {
-      const id = req.params.id;
-      const query = { _id: new ObjectId(id) };
-      // console.log(query);
-      const result = await userCollection.deleteOne(query);
-      res.send(result);
-    });
+    app.delete(
+      "/user-delete/:id",
+      verifyToken,
+      verifyAdmin,
+      async (req, res) => {
+        const id = req.params.id;
+        const query = { _id: new ObjectId(id) };
+        // console.log(query);
+        const result = await userCollection.deleteOne(query);
+        res.send(result);
+      }
+    );
 
     // get top riders based on ratingAvg and deliveryCount
     app.get("/top-riders", async (req, res) => {
