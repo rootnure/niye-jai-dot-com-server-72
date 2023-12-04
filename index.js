@@ -50,7 +50,7 @@ async function run() {
     });
 
     /* review related api */
-    // post/update a review
+    // post or update a review
     app.patch("/reviews", async (req, res) => {
       const reviewData = req.body;
       const filter = { bookingId: reviewData?.bookingId };
@@ -69,6 +69,14 @@ async function run() {
       };
       const options = { upsert: true };
       const result = await reviewCollection.updateOne(filter, review, options);
+      res.send(result);
+    });
+
+    // get all review based on rider id
+    app.get("/my-review/:id", async (req, res) => {
+      const id = req.params.id;
+      const query = { deliveryMenId: id };
+      const result = await reviewCollection.find(query).toArray();
       res.send(result);
     });
 
