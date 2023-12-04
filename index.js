@@ -36,6 +36,7 @@ async function run() {
       .collection("coverageArea");
     const userCollection = client.db(databaseName).collection("users");
     const bookingCollection = client.db(databaseName).collection("bookings");
+    const reviewCollection = client.db(databaseName).collection("reviews");
 
     // coverage api
     app.get("/coverage", async (req, res) => {
@@ -45,6 +46,29 @@ async function run() {
         .skip(+page * +limit)
         .limit(+limit)
         .toArray();
+      res.send(result);
+    });
+
+    /* review related api */
+    // post/update a review
+    app.patch("/reviews", async (req, res) => {
+      const reviewData = req.body;
+      const filter = { bookingId: reviewData?.bookingId };
+      const review = {
+        $set: {
+          reviewBy: {
+            name: reviewData?.reviewBy?.name,
+            photo: reviewData?.reviewBy?.photo,
+          },
+          rating: reviewData?.rating,
+          feedback: reviewData?.feedback,
+          deliveryMenId: reviewData?.deliveryMenId,
+          bookingId: reviewData?.bookingId,
+          reviewDate: moment(new Date()).format("YYYY-MM-DD"),
+        },
+      };
+      const options = { upsert: true };
+      const result = await reviewCollection.updateOne(filter, review, options);
       res.send(result);
     });
 
