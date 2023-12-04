@@ -4,7 +4,7 @@ const jwt = require("jsonwebtoken");
 require("dotenv").config();
 const stripe = require("stripe")(process.env.STRIPE_SK);
 const app = express();
-const port = process.env.PORT || 5000;
+const port = process.env.PORT || 5005;
 
 // middleware
 app.use(
@@ -140,7 +140,7 @@ async function run() {
     });
 
     // get all bookings by admin only
-    app.get("/bookings", verifyToken, async (req, res) => {
+    app.get("/bookings", verifyToken, verifyAdmin, async (req, res) => {
       const { dateFrom, dateTo } = req.query;
       const query =
         dateFrom && dateTo
@@ -161,8 +161,8 @@ async function run() {
           status: 1,
         },
       };
-      // const result = await bookingCollection.find(query, options).toArray();
-      // res.send(result);
+      const result = await bookingCollection.find(query, options).toArray();
+      res.send(result);
     });
 
     // get booking based on user email
