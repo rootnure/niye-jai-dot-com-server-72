@@ -107,6 +107,28 @@ async function run() {
       res.send(result);
     });
 
+    // get bookings by assigned rider
+    app.get("/my-consignments/:uId", async (req, res) => {
+      const deliveryMen = req.params.uId;
+      const query = { deliveryMen: deliveryMen };
+      const options = {
+        projection: {
+          name: 1,
+          receiverName: 1,
+          phone: 1,
+          reqDeliveryDate: 1,
+          approxDeliveryDate: 1,
+          receiverPhone: 1,
+          deliveryAddress: 1,
+          deliveryLat: 1,
+          deliveryLon: 1,
+          status: 1,
+        },
+      };
+      const result = await bookingCollection.find(query, options).toArray();
+      res.send(result);
+    });
+
     // get single booking based on booking id
     app.get("/booking/:id", async (req, res) => {
       const query = { _id: new ObjectId(req.params.id) };
@@ -162,7 +184,7 @@ async function run() {
       const email = req.params.email;
       const query = { email: email };
       const options = {
-        projection: { _id: 0, role: 1 },
+        projection: { role: 1 },
       };
       const result = await userCollection.findOne(query, options);
       res.send(result);
