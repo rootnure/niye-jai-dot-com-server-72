@@ -7,7 +7,17 @@ const app = express();
 const port = process.env.PORT || 5000;
 
 // middleware
-app.use(cors());
+app.use(
+  cors({
+    origin: [
+      "http://localhost:5173",
+      "http://localhost:5174",
+      "https://niye-jai.web.app",
+      "https://niye-jai.firebaseapp.com",
+    ],
+    credentials: true,
+  })
+);
 app.use(express.json());
 
 const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
@@ -31,7 +41,7 @@ const databaseName = process.env.DB_NAME;
 async function run() {
   try {
     // Connect the client to the server	(optional starting in v4.7)
-    await client.connect();
+    // await client.connect();
     const userCollection = client.db(databaseName).collection("users");
     const bookingCollection = client.db(databaseName).collection("bookings");
     const reviewCollection = client.db(databaseName).collection("reviews");
@@ -151,8 +161,8 @@ async function run() {
           status: 1,
         },
       };
-      const result = await bookingCollection.find(query, options).toArray();
-      res.send(result);
+      // const result = await bookingCollection.find(query, options).toArray();
+      // res.send(result);
     });
 
     // get booking based on user email
