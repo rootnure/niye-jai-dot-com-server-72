@@ -4,20 +4,21 @@ const jwt = require("jsonwebtoken");
 require("dotenv").config();
 const stripe = require("stripe")(process.env.STRIPE_SK);
 const app = express();
-const port = process.env.PORT || 5005;
+const port = process.env.PORT || 5000;
 
 // middleware
-app.use(
-  cors({
-    origin: [
-      "http://localhost:5173",
-      "http://localhost:5174",
-      "https://niye-jai.web.app",
-      "https://niye-jai.firebaseapp.com",
-    ],
-    credentials: true,
-  })
-);
+const corsSettings = {
+  origin: [
+    "http://localhost:5173",
+    "http://localhost:5174",
+    "https://niye-jai.web.app",
+    "https://niye-jai.firebaseapp.com",
+  ],
+  credentials: true,
+};
+// console.log(corsSettings);
+// app.use(cors(corsSettings));
+app.use(cors());
 app.use(express.json());
 
 const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
@@ -224,13 +225,14 @@ async function run() {
       if (user) {
         return res.send({ message: "User Already Registered" });
       }
-      const { role, createdOn, name, photo } = req.body;
+      const { role, createdOn, name, photo, phone } = req.body;
       const newUser = {
         email,
         createdOn,
         role,
         name,
         photo,
+        phone,
       };
       const result = await userCollection.insertOne(newUser);
       res.send(result);
