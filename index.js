@@ -153,6 +153,7 @@ async function run() {
             }
           : {};
       const options = {
+        sort: { bookingDate: -1 },
         projection: {
           name: 1,
           phone: 1,
@@ -238,7 +239,7 @@ async function run() {
       res.send(result);
     });
 
-    // Get Users based on role (All users will be return if no role is provided)
+    // Get role based all Users (All users in db will be return if no role is provided)
     app.get("/users", verifyToken, async (req, res) => {
       const role = req.query.role; // /users?role=Admin
       const query = role === "All" || !role ? {} : { role: role };
@@ -280,6 +281,22 @@ async function run() {
         res.send(result);
       }
     );
+
+    // update user name and photo by user only
+    app.patch("/update-name-photo/:email", verifyToken, async (req, res) => {
+      const email = req.params.email;
+      const { name, photo } = req.body;
+      const filter = { email: email };
+      const options = { upsert: true };
+      const updateDoc = {
+        $set: {
+          name: name,
+          photo: photo,
+        },
+      };
+      const result = await userCollection.updateOne(filter, updateDoc, options);
+      res.send(result);
+    });
 
     // delete user by admin only
     app.delete(
